@@ -22,23 +22,8 @@ require "pry/indent"
 # * https://github.com/pry/pry
 # * the IRC channel, which is #pry on the Freenode network
 #
-class Pry
-  CONFIG = {
-    :input               => proc { Pry.input },
-    :output              => proc { Pry.output },
-    :commands            => proc { Pry.commands },
-    :print               => proc { Pry.print },
-    :quiet               => proc { Pry.quiet },
-    :exception_handler   => proc { Pry.exception_handler },
-    :hooks               => proc { Pry.hooks },
-    :custom_completions  => proc { Pry.custom_completions },
-    :prompt              => proc { Pry.prompt },
-    :memory_size         => proc { Pry.memory_size },
-    :extra_sticky_locals => proc { Pry.extra_sticky_locals }
-  }.freeze
-  attr_accessor *CONFIG.keys
-  alias :quiet? :quiet
 
+class Pry
   attr_accessor :binding_stack
   attr_accessor :eval_string
   attr_accessor :backtrace
@@ -79,10 +64,9 @@ class Pry
     @command_state = {}
     @eval_string   = ""
     @backtrace     = options[:backtrace] || caller
-
-    refresh(CONFIG)
-    refresh(options)
-
+    @config        = Pry::Config.new
+    @config.merge!(Pry.config)
+    @config.merge!(options)
     push_initial_binding(options[:target])
     set_last_result nil
     @input_array << nil # add empty input so _in_ and _out_ match
@@ -658,12 +642,4 @@ class Pry
   def raise_up!(*args); raise_up_common(true, *args); end
 
 private
-  def refresh(options)
-    options.each do |key, value|
-      setter = "#{key}="
-      if respond_to?(setter)
-        self.send setter, options == CONFIG ? value.call : value
-      end
-    end
-  end
 end
