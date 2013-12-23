@@ -446,6 +446,10 @@ class Pry
     # @param [Array<String>] args The arguments to `#call`
     # @return [Object] The return value from `#call`
     def call_with_hooks(*args)
+      Pry.hooks.get_hooks("before_#{command_name}".to_sym).each do |name, callable|
+        instance_exec(*args, &callable)
+      end
+
       self.class.hooks[:before].each do |block|
         instance_exec(*args, &block)
       end
@@ -454,6 +458,10 @@ class Pry
 
       self.class.hooks[:after].each do |block|
         ret = instance_exec(*args, &block)
+      end
+
+      Pry.hooks.get_hooks("after_#{command_name}".to_sym).each do |name, callable|
+        ret = instance_exec(*args, &callable)
       end
 
       ret

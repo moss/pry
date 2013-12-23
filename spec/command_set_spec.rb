@@ -492,6 +492,124 @@ describe Pry::CommandSet do
 
   end
 
+  describe "command hooks - before_{command} and after_{command}" do
+    before do
+      @original_hooks = Pry.hooks
+      Pry.hooks = Pry::Hooks.new
+    end
+
+    after do
+      Pry.hooks = @original_hooks
+    end
+
+    describe "before command" do
+      it 'should be called before the original command' do
+        foo = []
+        @set.command('foo') { foo << 1 }
+        Pry.hooks.add_hook(:before_foo, :name) { foo << 2 }
+        @set.run_command(@ctx, 'foo')
+
+        foo.should == [2, 1]
+      end
+
+      it 'should be called before the original command, using listing name' do
+        foo = []
+        @set.command(/^foo1/, '', :listing => 'foo') { foo << 1 }
+        Pry.hooks.add_hook(:before_foo, :name) { foo << 2 }
+        @set.run_command(@ctx, /^foo1/)
+
+        foo.should == [2, 1]
+      end
+
+      it 'should share the context with the original command' do
+        @ctx[:target] = "test target string".__binding__
+        before_val  = nil
+        orig_val    = nil
+        @set.command('foo') { orig_val = target }
+        Pry.hooks.add_hook(:before_foo, :name) { before_val = target }
+        @set.run_command(@ctx, 'foo')
+
+        before_val.should == @ctx[:target]
+        orig_val.should == @ctx[:target]
+      end
+
+      it 'should work when applied multiple times' do
+        foo = []
+        @set.command('foo') { foo << 1 }
+        Pry.hooks.add_hook(:before_foo, :add2) { foo << 2 }
+        Pry.hooks.add_hook(:before_foo, :add3) { foo << 3 }
+        Pry.hooks.add_hook(:before_foo, :add4) { foo << 4 }
+        @set.run_command(@ctx, 'foo')
+
+        foo.should == [2, 3, 4, 1]
+      end
+
+    end
+
+    describe "after command" do
+      it 'should be called after the original command' do
+        foo = []
+        @set.command('foo') { foo << 1 }
+        Pry.hooks.add_hook(:after_foo, :name) { foo << 2 }
+        @set.run_command(@ctx, 'foo')
+
+        foo.should == [1, 2]
+      end
+
+      it 'should be called after the original command, using listing name' do
+        foo = []
+        @set.command(/^foo1/, '', :listing => 'foo') { foo << 1 }
+        Pry.hooks.add_hook(:after_foo, :name) { foo << 2 }
+        @set.run_command(@ctx, /^foo1/)
+
+        foo.should == [1, 2]
+      end
+
+      it 'should share the context with the original command' do
+        @ctx[:target] = "test target string".__binding__
+        after_val   = nil
+        orig_val    = nil
+        @set.command('foo') { orig_val = target }
+        Pry.hooks.add_hook(:after_foo, :name) { after_val = target }
+        @set.run_command(@ctx, 'foo')
+
+        after_val.should == @ctx[:target]
+        orig_val.should == @ctx[:target]
+      end
+
+      it 'should determine the return value for the command' do
+        @set.command('foo', 'bar', :keep_retval => true) { 1 }
+        Pry.hooks.add_hook(:after_foo, :name) { 2 }
+        @set.run_command(@ctx, 'foo').should == 2
+      end
+
+      it 'should work when applied multiple times' do
+        foo = []
+        @set.command('foo') { foo << 1 }
+        Pry.hooks.add_hook(:after_foo, :add2) { foo << 2 }
+        Pry.hooks.add_hook(:after_foo, :add3) { foo << 3 }
+        Pry.hooks.add_hook(:after_foo, :add4) { foo << 4 }
+        @set.run_command(@ctx, 'foo')
+
+        foo.should == [1, 2, 3, 4]
+      end
+    end
+
+    describe "before command and after command" do
+      it 'should work when combining both before_command and after_command' do
+        foo = []
+        @set.command('foo') { foo << 1 }
+        Pry.hooks.add_hook(:after_foo, :name) { foo << 2 }
+        Pry.hooks.add_hook(:before_foo, :name) { foo << 3 }
+        @set.run_command(@ctx, 'foo')
+
+        foo.should == [3, 1, 2]
+      end
+
+    end
+
+  end
+
   describe 'find_command' do
     it 'should find commands with the right string' do
       cmd = @set.command('rincewind'){ }
